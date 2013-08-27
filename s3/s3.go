@@ -538,6 +538,8 @@ func (s3 *S3) prepare(req *request) error {
 	if s3.Auth.SecurityToken != "" {
 		req.headers["X-Amz-Security-Token"] = []string{s3.Auth.SecurityToken}
 		//log.Printf("Ali: SecToken = %s \n", s3.Auth.SecurityToken)
+		//log.Printf("Ali: AccKey= ", s3.Auth.AccessKey)
+		//log.Printf("Ali: SecKey= ", s3.Auth.SecretKey)
 	}
 	sign(s3.Auth, req.method, req.signpath, req.params, req.headers)
 	return nil
