@@ -110,7 +110,19 @@ func (q *Query) AddCreateRequestTable(description TableDescriptionT) {
 		"WriteCapacityUnits": int(description.ProvisionedThroughput.WriteCapacityUnits),
 	}
 
-	// Todo: Implement LocalSecondayIndexes
+	localSecondaryIndexes := []interface{}{}
+
+	for _, ind := range description.LocalSecondaryIndexes {
+		localSecondaryIndexes = append(localSecondaryIndexes, msi{
+			"IndexName":  ind.IndexName,
+			"KeySchema":  ind.KeySchema,
+			"Projection": ind.Projection,
+		})
+	}
+
+	if len(localSecondaryIndexes) > 0 {
+		b["LocalSecondaryIndexes"] = localSecondaryIndexes
+	}
 }
 
 func (q *Query) AddDeleteRequestTable(description TableDescriptionT) {
@@ -194,8 +206,10 @@ func (q *Query) AddExpected(attributes []Attribute) {
 		if a.Exists != "" {
 			value["Exists"] = a.Exists
 		}
-		//UGH!!  (I miss the query operator)
-		value["Value"] = msi{a.Type: map[bool]interface{}{true: a.SetValues, false: a.Value}[a.SetType()]}
+		// If set Exists to false, we must remove Value
+		if value["Exists"] != "false" {
+			value["Value"] = msi{a.Type: map[bool]interface{}{true: a.SetValues, false: a.Value}[a.SetType()]}
+		}
 		expected[a.Name] = value
 	}
 	q.buffer["Expected"] = expected
