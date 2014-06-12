@@ -82,6 +82,10 @@ func (s *Server) SendHTMLEmail(from, to, cc, subject, body string) (string, erro
 	data.Add("Message.Subject.Data", subject)
 	//data.Add("Message.Body.Text.Data", body)
 	data.Add("Message.Body.Html.Data", body)
+
+	// to make sure token is uptodate, which means accesskey will remanin valid when we actually make the request
+	s.Auth.Token()
+
 	data.Add("AWSAccessKeyId", s.Auth.AccessKey)
 
 	return s.sesGet(data)
