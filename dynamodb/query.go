@@ -19,6 +19,17 @@ func (t *Table) QueryOnIndex(attributeComparisons []AttributeComparison, indexNa
 	return runQuery(q, t)
 }
 
+// Consistent reads are not supported on global secondary indexes
+//func (t *Table) QueryOnIndexConsistent(attributeComparisons []AttributeComparison, indexName string, consistentRead bool) ([]map[string]*Attribute, error) {
+//	q := NewQuery(t)
+//	if consistentRead {
+//		q.ConsistentRead(consistentRead)
+//	}
+//	q.AddKeyConditions(attributeComparisons)
+//	q.AddIndex(indexName)
+//	return runQuery(q, t)
+//}
+
 func (t *Table) LimitedQuery(attributeComparisons []AttributeComparison, limit int64) ([]map[string]*Attribute, error) {
 	q := NewQuery(t)
 	q.AddKeyConditions(attributeComparisons)
