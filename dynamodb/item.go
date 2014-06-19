@@ -188,7 +188,7 @@ func (t *Table) putItem(hashKey, rangeKey string, attributes, expected []Attribu
 
 	jsonResponse, err := t.Server.queryServer(target("PutItem"), q)
 	if err != nil {
-		log.Printf("Error requesting from Amazon, response is:%#v\n and error is: %#v\n", string(jsonResponse), err)
+		log.Printf("Error requesting from Amazon, request was: %#v\n response is:%#v\n and error is: %#v\n", q, string(jsonResponse), err)
 	}
 
 	//ALI

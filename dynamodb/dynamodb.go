@@ -157,7 +157,7 @@ func (s *Server) queryServer(target string, query *Query) ([]byte, error) {
 	resp, err := http.DefaultClient.Do(hreq)
 
 	if err != nil {
-		log.Printf("Error calling Amazon")
+		log.Printf("Error calling Amazon: %v\n", err)
 		return nil, err
 	}
 
