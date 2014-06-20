@@ -212,7 +212,7 @@ func (t *Table) putItem(hashKey, rangeKey string, attributes, expected []Attribu
 			<-time.After((1 << currentRetry) * 50 * time.Millisecond)
 			currentRetry += 1
 		}
-		if currentRetry > 5 { // (2 ^ 5) * 50 = 1.6 second
+		if currentRetry > 4 || !retry { // (2 ^ 5) * 50 = 1.6 second
 			break
 		}
 	}
