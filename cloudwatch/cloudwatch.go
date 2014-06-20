@@ -266,11 +266,16 @@ func (c *CloudWatch) ListMetrics(req *ListMetricsRequest) (result *ListMetricsRe
 	if req.Namespace != "" {
 		params["Namespace"] = req.Namespace
 	}
+	if req.MetricName != "" {
+		params["MetricName"] = req.MetricName
+	}
 	if len(req.Dimensions) > 0 {
 		for i, d := range req.Dimensions {
 			prefix := "Dimensions.member." + strconv.Itoa(i+1)
 			params[prefix+".Name"] = d.Name
-			params[prefix+".Value"] = d.Value
+			if len(d.Value) > 0 {
+				params[prefix+".Value"] = d.Value
+			}
 		}
 	}
 

@@ -13,6 +13,7 @@ package s3
 import (
 	"bytes"
 	"crypto/hmac"
+	"crypto/md5"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/xml"
@@ -61,6 +62,7 @@ type Options struct {
 	ContentEncoding  string
 	CacheControl     string
 	RedirectLocation string
+	ContentMD5       string
 	// What else?
 	// Content-Disposition string
 	//// The following become headers so they are []strings rather than strings... I think
@@ -242,15 +244,17 @@ func (b *Bucket) Exists(path string) (exists bool, err error) {
 
 		if err != nil {
 			// We can treat a 403 or 404 as non existance
-			if (*err.(*Error)).StatusCode == 403 || (*err.(*Error)).StatusCode == 404 {
+			if e, ok := err.(*Error); ok && (e.StatusCode == 403 || e.StatusCode == 404) {
 				return false, nil
-			} else {
-				return false, err
 			}
+			return false, err
 		}
 
 		if resp.StatusCode/100 == 2 {
 			exists = true
+		}
+		if resp.Body != nil {
+			resp.Body.Close()
 		}
 		return exists, err
 	}
@@ -343,6 +347,9 @@ func (o Options) addHeaders(headers map[string][]string) {
 	if len(o.CacheControl) != 0 {
 		headers["Cache-Control"] = []string{o.CacheControl}
 	}
+	if len(o.ContentMD5) != 0 {
+		headers["Content-MD5"] = []string{o.ContentMD5}
+	}
 	if len(o.RedirectLocation) != 0 {
 		headers["x-amz-website-redirect-location"] = []string{o.RedirectLocation}
 	}
@@ -360,6 +367,13 @@ func (o CopyOptions) addHeaders(headers map[string][]string) {
 	if len(o.ContentType) != 0 {
 		headers["Content-Type"] = []string{o.ContentType}
 	}
+}
+
+func makeXmlBuffer(doc []byte) *bytes.Buffer {
+	buf := new(bytes.Buffer)
+	buf.WriteString(xml.Header)
+	buf.Write(doc)
+	return buf
 }
 
 type RoutingRule struct {
@@ -382,9 +396,7 @@ func (b *Bucket) PutBucketWebsite(configuration WebsiteConfiguration) error {
 		return err
 	}
 
-	buf := new(bytes.Buffer)
-	buf.WriteString(xml.Header)
-	buf.Write(doc)
+	buf := makeXmlBuffer(doc)
 
 	return b.PutBucketSubresource("website", buf, int64(buf.Len()))
 }
@@ -414,6 +426,49 @@ func (b *Bucket) Del(path string) error {
 		bucket: b.Name,
 		path:   path,
 	}
+	return b.S3.query(req, nil)
+}
+
+type Delete struct {
+	Quiet   bool     `xml:"Quiet,omitempty"`
+	Objects []Object `xml:"Object"`
+}
+
+type Object struct {
+	Key       string `xml:"Key"`
+	VersionId string `xml:"VersionId,omitempty"`
+}
+
+// DelMulti removes up to 1000 objects from the S3 bucket.
+//
+// See http://goo.gl/jx6cWK for details.
+func (b *Bucket) DelMulti(objects Delete) error {
+	doc, err := xml.Marshal(objects)
+	if err != nil {
+		return err
+	}
+
+	buf := makeXmlBuffer(doc)
+	digest := md5.New()
+	size, err := digest.Write(buf.Bytes())
+	if err != nil {
+		return err
+	}
+
+	headers := map[string][]string{
+		"Content-Length": {strconv.FormatInt(int64(size), 10)},
+		"Content-MD5":    {base64.StdEncoding.EncodeToString(digest.Sum(nil))},
+		"Content-Type":   {"text/xml"},
+	}
+	req := &request{
+		path:    "/",
+		method:  "POST",
+		params:  url.Values{"delete": {""}},
+		bucket:  b.Name,
+		headers: headers,
+		payload: buf,
+	}
+
 	return b.S3.query(req, nil)
 }
 
@@ -727,6 +782,11 @@ func (s3 *S3) query(req *request, resp interface{}) error {
 	err := s3.prepare(req, "GET")
 	if err == nil {
 		_, err = s3.run(req, resp)
+		return err
+	}
+	r, err := s3.run(req, resp)
+	if r != nil && r.Body != nil {
+		r.Body.Close()
 	}
 	return err
 }

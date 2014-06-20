@@ -34,6 +34,10 @@ func (q *Query) AddKey(t *Table, key *Key) {
 	q.buffer["Key"] = keymap
 }
 
+func (q *Query) AddExclusiveStartKey(t *Table, key *Key) {
+	q.buffer["ExclusiveStartKey"] = keyAttributes(t, key)
+}
+
 func keyAttributes(t *Table, key *Key) msi {
 	k := t.Key
 
@@ -122,6 +126,24 @@ func (q *Query) AddCreateRequestTable(description TableDescriptionT) {
 
 	if len(localSecondaryIndexes) > 0 {
 		b["LocalSecondaryIndexes"] = localSecondaryIndexes
+	}
+
+	globalSecondaryIndexes := []interface{}{}
+
+	for _, ind := range description.GlobalSecondaryIndexes {
+		globalSecondaryIndexes = append(globalSecondaryIndexes, msi{
+			"IndexName":  ind.IndexName,
+			"KeySchema":  ind.KeySchema,
+			"Projection": ind.Projection,
+			"ProvisionedThroughput": msi{
+				"ReadCapacityUnits":  int(ind.ProvisionedThroughput.ReadCapacityUnits),
+				"WriteCapacityUnits": int(ind.ProvisionedThroughput.WriteCapacityUnits),
+			},
+		})
+	}
+
+	if len(globalSecondaryIndexes) > 0 {
+		b["GlobalSecondaryIndexes"] = globalSecondaryIndexes
 	}
 }
 
