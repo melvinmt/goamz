@@ -198,7 +198,7 @@ func (t *Table) putItem(hashKey, rangeKey string, attributes, expected []Attribu
 		jsonResponse, err = t.Server.queryServer(target("PutItem"), q)
 		if err != nil {
 			log.Printf("Error requesting from Amazon, request was: %#v\n response is:%#v\n and error is: %#v\n", q, string(jsonResponse), err)
-			if reflect.TypeOf(err) == reflect.TypeOf(Error{}) {
+			if reflect.TypeOf(err) == reflect.TypeOf(&Error{}) {
 				Err := Error(err.(Error))
 				if (Err.StatusCode == 500) || (Err.Code == "ThrottlingException") || (Err.Code == "ProvisionedThroughputExceededException") {
 					retry = true
