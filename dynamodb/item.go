@@ -197,7 +197,7 @@ func (t *Table) putItem(hashKey, rangeKey string, attributes, expected []Attribu
 	for {
 		jsonResponse, err = t.Server.queryServer(target("PutItem"), q)
 		if err != nil {
-			log.Printf("Error requesting from Amazon, request was: %#v\n response is:%#v\n and error is: %#v\n", q, string(jsonResponse), err)
+			log.Printf("Error requesting from Amazon, tablename: %v request was: %#v\n response is:%#v\n and error is: %#v\n", t.Name, q, string(jsonResponse), err)
 			if reflect.TypeOf(err) == reflect.TypeOf(&Error{}) {
 				Err := err.(*Error)
 				if (Err.StatusCode == 500) || (Err.Code == "ThrottlingException") || (Err.Code == "ProvisionedThroughputExceededException") {
@@ -218,7 +218,7 @@ func (t *Table) putItem(hashKey, rangeKey string, attributes, expected []Attribu
 	}
 
 	//ALI
-	fmt.Printf("AMZ response: %s\n", string(jsonResponse))
+	//fmt.Printf("AMZ response: %s\n", string(jsonResponse))
 	var amzResponse map[string]interface{}
 	err = json.Unmarshal(jsonResponse, &amzResponse)
 	if err != nil {
