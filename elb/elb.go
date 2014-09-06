@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/alimoeeny/goamz/aws"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -279,39 +278,17 @@ func (elb *ELB) query(params map[string]string, resp interface{}) error {
 	if endpoint.Path == "" {
 		endpoint.Path = "/"
 	}
-	sign(elb.Auth, "GET", endpoint.Path, params, endpoint.Host)
+	signer, err := aws.NewV2Signer(elb.Auth, aws.ServiceInfo{Endpoint: elb.Region.ELBEndpoint, Signer: 2})
+	if err != nil {
+		return err
+	}
+	signer.Sign("GET", endpoint.Path, params)
 	endpoint.RawQuery = multimap(params).Encode()
 
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", endpoint.String(), nil)
-
-	req.Header.Set("Content-Type", "application/x-amz-json-1.0")
-
-	//ALI
-	if elb.Auth.Token() != "" {
-		req.Header.Set("X-Amz-Security-Token", elb.Auth.Token())
-	}
-
-	req.Header.Set("X-Amz-Date", time.Now().UTC().Format(aws.ISO8601BasicFormat))
-	//req.Header.Set("X-Amz-Target", target)
-
-	signer := aws.NewV4Signer(elb.Auth, "elasticloadbalancing", elb.Region)
-	signer.Sign(req)
-
+	r, err := http.Get(endpoint.String())
 	if err != nil {
-		log.Println("ERROR creating the request", err)
 		return err
 	}
-	if elb.Auth.Token() != "" {
-		req.Header.Add("X-Amz-Security-Token", elb.Auth.Token())
-	}
-	r, err := client.Do(req)
-	if err != nil {
-		log.Println("ERROR DOing the request:", err)
-		return err
-	}
-	//log.Println("DEBUG Q:", req)
-	//log.Println("DEBUG R:", r)
 	defer r.Body.Close()
 	if r.StatusCode != 200 {
 		return buildError(r)
@@ -387,6 +364,7 @@ func makeCreateParams(createLB *CreateLoadBalancer) map[string]string {
 		params[fmt.Sprintf(key, index, "InstanceProtocol")] = l.InstanceProtocol
 		params[fmt.Sprintf(key, index, "Protocol")] = l.Protocol
 		params[fmt.Sprintf(key, index, "LoadBalancerPort")] = strconv.Itoa(l.LoadBalancerPort)
+		params[fmt.Sprintf(key, index, "SSLCertificateId")] = l.SSLCertificateId
 	}
 	for i, az := range createLB.AvailabilityZones {
 		key := fmt.Sprintf("AvailabilityZones.member.%d", i+1)

@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const maxNumberOfRetry = 4
+
 type BatchGetItem struct {
 	Server *Server
 	Keys   map[*Table][]Key

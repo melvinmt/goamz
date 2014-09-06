@@ -4,6 +4,7 @@ import (
 	"github.com/alimoeeny/goamz/aws"
 	"github.com/alimoeeny/goamz/cloudwatch"
 	"github.com/alimoeeny/goamz/testutil"
+	"gopkg.in/check.v1"
 	"testing"
 )
 
