@@ -103,6 +103,38 @@ func (s3 *S3) Bucket(name string) *Bucket {
 	return &Bucket{s3, name}
 }
 
+type BucketInfo struct {
+	Name         string
+	CreationDate string
+}
+
+type GetServiceResp struct {
+	Owner   Owner
+	Buckets []BucketInfo `xml:">Bucket"`
+}
+
+// GetService gets a list of all buckets owned by an account.
+//
+// See http://goo.gl/wbHkGj for details.
+func (s3 *S3) GetService() (*GetServiceResp, error) {
+	bucket := s3.Bucket("")
+
+	r, err := bucket.Get("")
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(string(r))
+
+	// Parse the XML response.
+	var resp GetServiceResp
+	if err = xml.Unmarshal(r, &resp); err != nil {
+		return nil, err
+	}
+
+	return &resp, nil
+}
+
 var createBucketConfiguration = `<CreateBucketConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <LocationConstraint>%s</LocationConstraint>
 </CreateBucketConfiguration>`
@@ -303,7 +335,7 @@ func (b *Bucket) Put(path string, data []byte, contType string, perm ACL, option
 func (b *Bucket) PutCopy(path string, perm ACL, options CopyOptions, source string) (*CopyObjectResult, error) {
 	headers := map[string][]string{
 		"x-amz-acl":         {string(perm)},
-		"x-amz-copy-source": {source},
+		"x-amz-copy-source": {url.QueryEscape(source)},
 	}
 	options.addHeaders(headers)
 	req := &request{
@@ -799,6 +831,51 @@ func (s3 *S3) query(req *request, resp interface{}) error {
 	return err
 }
 
+// queryV4Signprepares and runs the req request, signed with aws v4 signatures.
+// If resp is not nil, the XML data contained in the response
+// body will be unmarshalled on it.
+func (s3 *S3) queryV4Sign(req *request, resp interface{}) error {
+	if req.headers == nil {
+		req.headers = map[string][]string{}
+	}
+
+	s3.setBaseURL(req)
+
+	hreq, err := s3.setupHttpRequest(req)
+	if err != nil {
+		return err
+	}
+
+	signer := aws.NewV4Signer(s3.Auth, "s3", s3.Region)
+	signer.IncludeXAmzContentSha256 = true
+	signer.Sign(hreq)
+
+	_, err = s3.doHttpRequest(hreq, resp)
+	return err
+}
+
+// Sets baseurl on req from bucket name and the region endpoint
+func (s3 *S3) setBaseURL(req *request) error {
+	if req.bucket == "" {
+		req.baseurl = s3.Region.S3Endpoint
+	} else {
+		req.baseurl = s3.Region.S3BucketEndpoint
+		if req.baseurl == "" {
+			// Use the path method to address the bucket.
+			req.baseurl = s3.Region.S3Endpoint
+			req.path = "/" + req.bucket + req.path
+		} else {
+			// Just in case, prevent injection.
+			if strings.IndexAny(req.bucket, "/:@") >= 0 {
+				return fmt.Errorf("bad S3 bucket: %q", req.bucket)
+			}
+			req.baseurl = strings.Replace(req.baseurl, "${bucket}", req.bucket, -1)
+		}
+	}
+
+	return nil
+}
+
 // prepare sets up req to be delivered to S3.
 func (s3 *S3) prepare(req *request, method string) error {
 	//Ali
@@ -828,19 +905,12 @@ func (s3 *S3) prepare(req *request, method string) error {
 			req.path = "/" + req.path
 		}
 		signpath = req.path
+
+		err := s3.setBaseURL(req)
+		if err != nil {
+			return err
+		}
 		if req.bucket != "" {
-			req.baseurl = s3.Region.S3BucketEndpoint
-			if req.baseurl == "" {
-				// Use the path method to address the bucket.
-				req.baseurl = s3.Region.S3Endpoint
-				req.path = "/" + req.bucket + req.path
-			} else {
-				// Just in case, prevent injection.
-				if strings.IndexAny(req.bucket, "/:@") >= 0 {
-					return fmt.Errorf("bad S3 bucket: %q", req.bucket)
-				}
-				req.baseurl = strings.Replace(req.baseurl, "${bucket}", req.bucket, -1)
-			}
 			signpath = "/" + req.bucket + signpath
 		}
 	}
@@ -861,14 +931,8 @@ func (s3 *S3) prepare(req *request, method string) error {
 	return nil
 }
 
-// run sends req and returns the http response from the server.
-// If resp is not nil, the XML data contained in the response
-// body will be unmarshalled on it.
-func (s3 *S3) run(req *request, resp interface{}) (*http.Response, error) {
-	if debug {
-		log.Printf("Running S3 request: %#v", req)
-	}
-
+// Prepares an *http.Request for doHttpRequest
+func (s3 *S3) setupHttpRequest(req *request) (*http.Request, error) {
 	u, err := req.url()
 	if err != nil {
 		return nil, err
@@ -891,6 +955,13 @@ func (s3 *S3) run(req *request, resp interface{}) (*http.Response, error) {
 		hreq.Body = ioutil.NopCloser(req.payload)
 	}
 
+	return &hreq, nil
+}
+
+// doHttpRequest sends hreq and returns the http response from the server.
+// If resp is not nil, the XML data contained in the response
+// body will be unmarshalled on it.
+func (s3 *S3) doHttpRequest(hreq *http.Request, resp interface{}) (*http.Response, error) {
 	c := http.Client{
 		Transport: &http.Transport{
 			Dial: func(netw, addr string) (c net.Conn, err error) {
@@ -912,7 +983,7 @@ func (s3 *S3) run(req *request, resp interface{}) (*http.Response, error) {
 		},
 	}
 
-	hresp, err := c.Do(&hreq)
+	hresp, err := c.Do(hreq)
 	if err != nil {
 		return nil, err
 	}
@@ -933,6 +1004,22 @@ func (s3 *S3) run(req *request, resp interface{}) (*http.Response, error) {
 
 	}
 	return hresp, err
+}
+
+// run sends req and returns the http response from the server.
+// If resp is not nil, the XML data contained in the response
+// body will be unmarshalled on it.
+func (s3 *S3) run(req *request, resp interface{}) (*http.Response, error) {
+	if debug {
+		log.Printf("Running S3 request: %#v", req)
+	}
+
+	hreq, err := s3.setupHttpRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return s3.doHttpRequest(hreq, resp)
 }
 
 // Error represents an error in an operation with S3.
