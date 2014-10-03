@@ -18,8 +18,8 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/alimoeeny/goamz/aws"
 	"github.com/feyeleanor/sets"
+	"github.com/melvinmt/goamz/aws"
 	"strconv"
 	"time"
 )

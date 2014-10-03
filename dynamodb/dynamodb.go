@@ -3,7 +3,7 @@ package dynamodb
 import simplejson "github.com/bitly/go-simplejson"
 import (
 	"errors"
-	"github.com/alimoeeny/goamz/aws"
+	"github.com/melvinmt/goamz/aws"
 	"io/ioutil"
 	"log"
 	"net/http"

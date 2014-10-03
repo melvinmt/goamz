@@ -6,7 +6,7 @@ Merged from https://github.com/Mistobaan/sqs
 Installation
 ------------
 
-   go get github.com/alimoeeny/goamz/sqs
+   go get github.com/melvinmt/goamz/sqs
 
 
 Testing

@@ -1,9 +1,9 @@
 package iam_test
 
 import (
-	"github.com/alimoeeny/goamz/aws"
-	"github.com/alimoeeny/goamz/iam"
-	"github.com/alimoeeny/goamz/testutil"
+	"github.com/melvinmt/goamz/aws"
+	"github.com/melvinmt/goamz/iam"
+	"github.com/melvinmt/goamz/testutil"
 	"gopkg.in/check.v1"
 	"net/url"
 )

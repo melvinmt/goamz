@@ -2,7 +2,7 @@ package dynamodb_test
 
 import (
 	"fmt"
-	"github.com/alimoeeny/goamz/dynamodb"
+	"github.com/melvinmt/goamz/dynamodb"
 	"gopkg.in/check.v1"
 )
 

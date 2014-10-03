@@ -1,8 +1,8 @@
 package s3_test
 
 import (
-	"github.com/alimoeeny/goamz/aws"
-	"github.com/alimoeeny/goamz/s3"
+	"github.com/melvinmt/goamz/aws"
+	"github.com/melvinmt/goamz/s3"
 	"gopkg.in/check.v1"
 )
 

@@ -2,8 +2,8 @@
 
 // import (
 // 	"fmt"
-// 	"github.com/alimoeeny/goamz/aws"
-// 	"github.com/alimoeeny/goamz/dynamodb"
+// 	"github.com/melvinmt/goamz/aws"
+// 	"github.com/melvinmt/goamz/dynamodb"
 // 	"net/http"
 // 	"net/url"
 // )
@@ -58,7 +58,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"github.com/alimoeeny/goamz/aws"
+	"github.com/melvinmt/goamz/aws"
 	"io/ioutil"
 	"net/http"
 	"net/url"
